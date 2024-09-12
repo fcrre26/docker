@@ -179,7 +179,12 @@ function create_wallet() {
     echo "创建新钱包..."
 
     # 导航到 cli 目录
-    cd /root/cat-token-box/packages/cli || { log_error "未找到 /cat-token-box/packages/cli 目录"; return 1; }
+    CLI_DIR="/root/cat-token-box/packages/cli"
+    if [ ! -d "$CLI_DIR" ]; then
+        log_error "未找到目录 $CLI_DIR，请检查仓库是否正确拉取。"
+        return 1
+    fi
+    cd "$CLI_DIR" || { log_error "无法进入目录 $CLI_DIR"; return 1; }
 
     # 检查比特币 RPC 服务是否运行
     if ! nc -z 127.0.0.1 8332; then
@@ -220,13 +225,12 @@ EOL
     # 创建新钱包
     echo "正在创建钱包，请稍候..."
     WALLET_OUTPUT=$(sudo yarn cli wallet create 2>&1)
-    echo "命令输出："
-    echo "$WALLET_OUTPUT"
-
     if [ $? -ne 0 ]; then
         log_error "创建钱包失败: $WALLET_OUTPUT"
         return 1
     fi
+    echo "命令输出："
+    echo "$WALLET_OUTPUT"
 
     # 提取并打印助记词、私钥和地址（如果存在）
     MNEMONIC=$(echo "$WALLET_OUTPUT" | grep -oP '(?<=Mnemonic: ).*')
@@ -236,22 +240,25 @@ EOL
     if [ -n "$MNEMONIC" ]; then
         echo "助记词: $MNEMONIC"
     else
-        echo "助记词未提供."
+        log_error "助记词未提供，钱包可能未正确创建。"
+        return 1
     fi
 
     if [ -n "$PRIVATE_KEY" ]; then
         echo "私钥: $PRIVATE_KEY"
     else
-        echo "私钥未提供."
+        log_error "私钥未提供。"
+        return 1
     fi
 
     if [ -n "$ADDRESS" ]; then
         echo "地址 (Taproot格式): $ADDRESS"
     else
-        echo "地址未提供."
+        log_error "地址未提供。"
+        return 1
     fi
 
-    # 记录钱包信息到 wallet_info.txt（修改路径）
+    # 记录钱包信息到 wallet_info.txt
     WALLET_LOG="/root/cat-token-box/wallet_info.txt"
     {
         echo "钱包创建时间: $(date)"
@@ -264,6 +271,12 @@ EOL
     echo "钱包信息已保存到 $WALLET_LOG"
     echo "新钱包创建完成！"
 
+    # 确保 wallet.json 文件存在
+    if [ ! -f wallet.json ]; then
+        log_error "wallet.json 文件未生成，钱包创建失败。"
+        return 1
+    fi
+
     cd ../../
 }
 
@@ -271,15 +284,16 @@ EOL
 function execute_mint() {
     echo "执行 mint 操作..."
 
-    # 检查钱包信息文件是否存在（修改路径）
-    if [ ! -f /root/cat-token-box/wallet_info.txt ]; then
-        echo "错误: 找不到钱包信息文件 wallet_info.txt。请先创建钱包。"
+    # 检查钱包信息文件是否存在（确保路径一致）
+    WALLET_LOG="/root/cat-token-box/wallet_info.txt"
+    if [ ! -f "$WALLET_LOG" ]; then
+        log_error "错误: 找不到钱包信息文件 $WALLET_LOG。请先创建钱包。"
         return 1
     fi
 
-    # 显示可用钱包信息（修改路径）
+    # 显示可用钱包信息
     echo "可用钱包:"
-    cat /root/cat-token-box/wallet_info.txt
+    cat "$WALLET_LOG"
 
     # 提示用户选择钱包索引
     echo -n "请输入要使用的钱包索引 (例如 1): "
@@ -299,7 +313,7 @@ function execute_mint() {
 
     # 检查是否输入了有效的交易哈希和索引
     if [[ -z "$txid" || -z "$tx_index" || -z "$mint_amount" ]]; then
-        echo "错误: 交易哈希、交易索引和 mint 数量不能为空。"
+        log_error "错误: 交易哈希、交易索引和 mint 数量不能为空。"
         return 1
     fi
 
@@ -312,7 +326,7 @@ function execute_mint() {
     # 执行 mint 操作
     $command
     if [ $? -ne 0 ]; then
-        echo "mint 失败。请检查节点和 API 服务是否正常运行。"
+        log_error "mint 失败。请检查节点和 API 服务是否正常运行。"
         return 1
     else
         echo "mint 成功"
