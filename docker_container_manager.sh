@@ -251,8 +251,8 @@ EOL
         echo "地址未提供."
     fi
 
-    # 记录钱包信息到 wallet_info.txt
-    WALLET_LOG="wallets.txt"
+    # 记录钱包信息到 wallet_info.txt（修改路径）
+    WALLET_LOG="/root/cat-token-box/wallet_info.txt"
     {
         echo "钱包创建时间: $(date)"
         echo "助记词: $MNEMONIC"
@@ -271,15 +271,15 @@ EOL
 function execute_mint() {
     echo "执行 mint 操作..."
 
-    # 检查钱包信息文件是否存在
-    if [ ! -f ../../wallet_info.txt ]; then
+    # 检查钱包信息文件是否存在（修改路径）
+    if [ ! -f /root/cat-token-box/wallet_info.txt ]; then
         echo "错误: 找不到钱包信息文件 wallet_info.txt。请先创建钱包。"
         return 1
     fi
 
-    # 显示可用钱包信息
+    # 显示可用钱包信息（修改路径）
     echo "可用钱包:"
-    cat ../../wallet_info.txt
+    cat /root/cat-token-box/wallet_info.txt
 
     # 提示用户选择钱包索引
     echo -n "请输入要使用的钱包索引 (例如 1): "
@@ -317,25 +317,6 @@ function execute_mint() {
     else
         echo "mint 成功"
     fi
-}
-
-# 6. 查看 Fractal 节点运行情况
-function check_node_status() {
-    echo "查看 Fractal 节点运行情况..."
-
-    # 检查 docker-compose 是否安装
-    if ! check_docker; then
-        return 1
-    fi
-
-    cd cat-token-box/packages/tracker || exit
-    while true; do
-        sudo docker-compose logs --tail=10
-        sleep 5
-        clear
-    done
-
-    cd ../../
 }
 
 # 菜单循环
