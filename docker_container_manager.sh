@@ -267,62 +267,56 @@ EOL
     cd ../../
 }
 
-# 5. 执行 mint
+# 5. 执行 mint 操作
 function execute_mint() {
     echo "执行 mint 操作..."
-    
-    # 检查比特币 RPC 服务是否运行
-    if ! nc -z 127.0.0.1 8332; then
-        log_error "无法连接到比特币节点 (127.0.0.1:8332)。请确保比特币节点已启动。"
+
+    # 检查钱包信息文件是否存在
+    if [ ! -f ../../wallet_info.txt ]; then
+        echo "错误: 找不到钱包信息文件 wallet_info.txt。请先创建钱包。"
         return 1
     fi
 
-    cd cat-token-box/packages/cli || exit
-
+    # 显示可用钱包信息
     echo "可用钱包:"
-    cat ../../$WALLET_LOG
+    cat ../../wallet_info.txt
 
-    # 钱包选择
-    echo "请输入要使用的钱包索引 (例如 1):"
-    read -r wallet_index
+    # 提示用户选择钱包索引
+    echo -n "请输入要使用的钱包索引 (例如 1): "
+    read wallet_index
 
-    # 输入交易哈希 (txid)
-    read -p "请输入交易哈希 (txid): " txid
-    if ! [[ "$txid" =~ ^[a-fA-F0-9]{64}$ ]]; then
-        log_error "无效的交易哈希，请输入正确的 64 位十六进制字符串。"
+    # 提示用户输入交易哈希 (txid)
+    echo -n "请输入交易哈希 (txid): "
+    read txid
+
+    # 提示用户输入交易索引 (index)
+    echo -n "请输入交易索引 (index): "
+    read tx_index
+
+    # 提示用户输入要 mint 的数量
+    echo -n "请输入要 mint 的数量: "
+    read mint_amount
+
+    # 检查是否输入了有效的交易哈希和索引
+    if [[ -z "$txid" || -z "$tx_index" || -z "$mint_amount" ]]; then
+        echo "错误: 交易哈希、交易索引和 mint 数量不能为空。"
         return 1
     fi
 
-    # 输入交易索引 (index)
-    read -p "请输入交易索引 (index): " index
-    if ! [[ "$index" =~ ^[0-9]+$ ]]; then
-        log_error "无效的交易索引，请输入一个正整数。"
+    # 构建 mint 命令
+    command="yarn cli mint -i ${txid}_${tx_index} ${mint_amount}"
+
+    # 显示即将执行的命令
+    echo "执行命令: $command"
+
+    # 执行 mint 操作
+    $command
+    if [ $? -ne 0 ]; then
+        echo "mint 失败。请检查节点和 API 服务是否正常运行。"
         return 1
+    else
+        echo "mint 成功"
     fi
-
-    # 输入 mint 数量
-    read -p "请输入要 mint 的数量: " mint_amount
-    if ! [[ "$mint_amount" =~ ^[0-9]+$ ]]; then
-        log_error "无效的 mint 数量，请输入一个正整数。"
-        return 1
-    fi
-
-    # 开始 mint 操作
-    command="sudo yarn cli mint -i ${txid}_${index} $mint_amount"
-
-    while true; do
-        $command
-
-        if [ $? -ne 0 ]; then
-            echo "mint 失败，继续下一次..."
-        else
-            echo "mint 成功"
-        fi
-
-        sleep 1
-    done
-
-    cd ../../
 }
 
 # 6. 查看 Fractal 节点运行情况
