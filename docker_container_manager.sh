@@ -177,7 +177,7 @@ function run_docker_containers() {
 # 4. 创建新钱包并捕获输出
 function create_wallet() {
     echo "创建新钱包..."
-    
+
     # 导航到 cli 目录
     cd /root/cat-token-box/packages/cli || { log_error "未找到 /cat-token-box/packages/cli 目录"; return 1; }
 
@@ -185,6 +185,15 @@ function create_wallet() {
     if ! nc -z 127.0.0.1 8332; then
         log_error "无法连接到比特币节点 (127.0.0.1:8332)。请确保比特币节点已启动。"
         return 1
+    fi
+
+    # 检查并备份现有的钱包文件
+    if [ -f wallet.json ]; then
+        BACKUP_DIR="wallet_backups"
+        mkdir -p "$BACKUP_DIR"
+        TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+        mv wallet.json "$BACKUP_DIR/wallet_$TIMESTAMP.json"
+        echo "已备份现有钱包文件到 $BACKUP_DIR/wallet_$TIMESTAMP.json"
     fi
 
     # 检查并创建 config.json 文件
@@ -206,22 +215,6 @@ EOL
         echo "config.json 文件已创建。"
     else
         echo "config.json 文件已存在，跳过创建步骤。"
-    fi
-
-    # 检查 tracker/.env 文件
-    if [ ! -f ../tracker/.env ]; then
-        log_error "未找到 tracker/.env 文件，请检查仓库克隆是否正确。"
-        return 1
-    fi
-
-    # 验证 tracker/.env 文件内容是否与 config.json 匹配
-    source ../tracker/.env
-    RPC_USER_CONFIG=$(grep -Po '(?<="username": ")[^"]*' config.json)
-    RPC_PASSWORD_CONFIG=$(grep -Po '(?<="password": ")[^"]*' config.json)
-
-    if [ "$RPC_USER" != "$RPC_USER_CONFIG" ] || [ "$RPC_PASSWORD" != "$RPC_PASSWORD_CONFIG" ]; then
-        log_error "config.json 与 tracker/.env 中的用户名或密码不匹配。请手动修正。"
-        return 1
     fi
 
     # 创建新钱包
@@ -258,8 +251,8 @@ EOL
         echo "地址未提供."
     fi
 
-    # 记录钱包信息到文件
-    echo "钱包信息已保存到 $WALLET_LOG"
+    # 记录钱包信息到 wallet_info.txt
+    WALLET_LOG="wallets.txt"
     {
         echo "钱包创建时间: $(date)"
         echo "助记词: $MNEMONIC"
@@ -267,6 +260,9 @@ EOL
         echo "地址 (Taproot格式): $ADDRESS"
         echo "--------------------------"
     } >> $WALLET_LOG
+
+    echo "钱包信息已保存到 $WALLET_LOG"
+    echo "新钱包创建完成！"
 
     cd ../../
 }
